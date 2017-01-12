@@ -1,0 +1,66 @@
+- name: Include variables
+  include_vars: main.yml
+
+- name: Extract binaries
+  register: extract
+  command: tar -C /usr/local -xzf /root/mysql-cluster-gpl-7.5.4-linux-glibc2.5-x86_64.tar.gz creates=/usr/local/mysql-cluster
+
+- name: Check if folder was renemed already     
+  stat: path=/usr/local/mysql-cluster
+  register: p
+
+- name: Rename folder
+  when: not p.stat.exists
+  command: mv /usr/local/mysql-cluster-gpl-7.5.4-linux-glibc2.5-x86_64 /usr/local/mysql-cluster
+
+- name: Link directory to short name
+  command: ln -s /usr/local/mysql-cluster /usr/local/mysql creates=/usr/local/mysql
+
+- name: Create mysql group
+  group: name=mysql system=yes
+
+- name: Create log dir
+  command: mkdir /var/log/mysql creates=/var/log/mysql
+
+- name: Create myslq user
+  user: name=mysql system=yes createhome=no group=mysql
+
+- name: remove /etc/mysql
+  file: path=/etc/mysql state=absent
+
+- name: Install mysql DB
+  command: /usr/local/mysql-cluster/bin/mysqld --initialize-insecure --user=mysql creates=/usr/local/mysql/data/mysql/user.frm
+
+- name: Set permissions
+  shell: chown -R mysql /usr/local/mysql/data && chgrp -R mysql /usr/local/mysql/data
+
+- name: Install init file
+  command: install /usr/local/mysql-cluster/support-files/mysql.server /etc/init.d/mysql creates=/etc/init.d/mysql
+
+- name: Install config
+  template: src=my.cnf dest=/etc/my.cnf
+
+- name: Copy sql init file
+  template: src=init dest=/root/init
+
+- name: Update rc
+  command: update-rc.d mysql defaults creates=/etc/init.d/mysql
+
+- name: Install binaries
+  command: install mysql mysqld_safe mysqld mysqladmin /usr/local/bin/ chdir=/usr/local/mysql-cluster/bin/
+
+- name: enable mysql service 
+  shell: systemctl enable mysql
+
+- name: Start MySQL
+  shell: /etc/init.d/mysql start
+  ignore_errors: yes
+
+- name: run sql script to set passwords and database;
+  shell: mysql < /root/init
+  ignore_errors: yes
+
+- name: create .my.cnf for root 
+  template: src=root.my.cnf dest=/root/.my.cnf
+
+

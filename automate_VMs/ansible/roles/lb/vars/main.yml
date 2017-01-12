@@ -1,0 +1,4 @@
+---
+domain: pavyzdys.com
+ssl_key: /etc/ssl/private/key.pem
+ssl_crt: /etc/ssl/private/cert.pem

@@ -1,0 +1,11 @@
+---
+- hosts: LB
+  roles:
+    - LB
+
+- hosts: WEB
+  roles:
+    - WEB
+
+
+

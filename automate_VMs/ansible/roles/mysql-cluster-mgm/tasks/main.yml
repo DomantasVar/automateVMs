@@ -1,0 +1,37 @@
+- name: Extract binaries
+  register: extract
+  command: tar -C /usr/local -xzf /root/mysql-cluster-gpl-7.5.4-linux-glibc2.5-x86_64.tar.gz creates=/usr/local/mysql-cluster
+
+- name: Check if folder was renemaed already     
+  stat: path=/usr/local/mysql-cluster
+  register: p
+
+- name: Rename folder
+  when: not p.stat.exists
+  command: mv /usr/local/mysql-cluster-gpl-7.5.4-linux-glibc2.5-x86_64 /usr/local/mysql-cluster
+
+- name: Create data dir
+  command: mkdir /var/lib/mysql-cluster creates=/var/lib/mysql-cluster
+
+- name: Copy config
+  template: src=config.ini dest=/var/lib/mysql-cluster/config.ini
+
+- name: Install nbd binaries
+  command: install ndb_mgmd ndb_mgm /usr/local/bin/ chdir=/usr/local/mysql-cluster/bin/
+
+- name: Install init file
+  copy: src=ndb_mgmd.init dest=/etc/init.d/ndb_mgmd
+
+- name: Initialize ndb_mgmd
+  command: ndb_mgmd -f /var/lib/mysql-cluster/config.ini --config-dir=/var/lib/mysql-cluster/
+  ignore_errors: yes
+
+- name: create iptables directory if not existent
+  file: path=/etc/iptables state=directory
+
+- name: copy iptables rules file
+  template: src=rules.v4 dest=/etc/iptables/rules.v4
+
+- name: load new FW rules
+  shell: iptables-restore < /etc/iptables/rules.v4
+  ignore_errors: yes

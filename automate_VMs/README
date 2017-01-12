@@ -1,0 +1,57 @@
+This project involves script to create single virtual machine with predefined configuration (automateVM.sh) and script to create multiple VMs at once (by invoking first script multiple times with different configuration files - infrastructure.sh) and Ansible playbooks for configuration management. 
+
+To use either of available options, you can 
+
+- edit settings in .cfg file(s) according to your needs (in this case in minor editions in Ansible playbooks will have to be made accordingly, for bigger changes Ansible playbook might become not suitable at all and a new set of playbooks will have to be created)
+
+- lauch infrastructure.sh to install predefined infrastructure, which will have master server, a cluster of web servers and mysql database cluster and a client machine for testing (recommended option)
+
+##########################################################################################################################################
+
+
+Instructions, how to fully prepare predefined infrastructure:
+
+1) Make sure needed software packages - debootstrap and VirtualBox - are installed 
+
+2) Edit some global settings for infrastructe in global_variables.cfg. Information abuot those options is provided in the global_variables.cfg file.
+
+3) Lauch infrastructe.sh script
+	sudo ./infrastructure.sh
+sudo option is required for operations involving system block devices, disk formatting etc.
+You might be asked questions regarding iptables instalation, so just accept those prompts as they come. 
+This script vill create virtual disks and .vbox  in directories entered in global_variables.cfg file. 
+
+4) Start created VMs - duoble click each .vbox file to register it in VirtualBox and then start them from VirtualBox GUI.
+
+5) (OPTIONAL) Connect to Master vitual machine from your host machine via SSH. To do this, you first have to check IP address assigned to Master machine by DHCP server / router via VirtualBox console (you might choose to use this console instead of SSH connection). 
+
+	ssh root@<Master IP>
+
+You will be connected without password prompt, as it is required to provide public SSH key of your host machine for this connection. 
+
+6) Navigate to /etc/ansible directory in Master machine and start main playbook
+	cd /etc/ansible
+	ansible-playbook -s infrastructure.yml
+This will prepare most of the infrastructure.
+
+7) To fully configure Zabbix monitoring server, in your host machine open browser and in address bar enter <Master IP>/zabbix (IP is same as in step 5). You should now see Zabbix installation screen. Follow the instructions and enter required fields. If you are using defaults, they should be as follows:
+
+Database Type:   MySQL
+Database host:   10.10.11.1
+Database port:   3306 (or leave 0)
+Database name:   zabbix
+User: 		 zabbix
+Password: 	 zabbix
+
+Host: 		 localhost
+Port: 		 10051
+Name:		 Any name
+
+8) If installation was successfull, open up console or terminal where you are connected to master, navigate to /etc/ansible directory and start zabbix-palybook
+	cd /etc/ansible
+	ansible-playbook -s zabbix-server.yml
+This playbook will import hosts to zabbix server (applies for default infrastructure)
+
+9) Start using infrastructure to your needs. 
+
+

@@ -1,0 +1,10 @@
+FLUSH PRIVILEGES; 
+ALTER USER 'root'@'localhost' IDENTIFIED BY '{{mysql_root_password}}';
+CREATE DATABASE IF NOT EXISTS {{zabbix_database}};
+DROP DATABASE IF EXISTS testas;
+CREATE DATABASE IF NOT EXISTS testas;
+CREATE TABLE IF NOT EXISTS testas.testas (test INT);
+INSERT INTO testas.testas VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+GRANT ALL PRIVILEGES on {{zabbix_database}}.* to '{{zabbix_user}}'@'{{zabbix_server}}' IDENTIFIED BY '{{zabbix_password}}';
+FLUSH PRIVILEGES;
+

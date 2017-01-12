@@ -1,0 +1,44 @@
+---
+- hosts: lb
+  roles:
+    - lb
+  tags:
+    - lb
+
+- hosts: web
+  roles:
+    - web
+  tags:
+    - web
+
+- hosts: mysql_cluster_mgm
+  roles:
+    - mysql-cluster-mgm
+  tags:
+    - mgm
+
+- hosts: mysql_cluster_data
+  roles:
+    - mysql-cluster-data
+  tags:
+    - data
+
+- hosts: mysql_cluster_sql
+  roles:
+    - mysql-cluster-sql
+  tags:
+    - sql
+
+- hosts: local
+  roles:
+    - master
+  tags: 
+    - master
+
+- hosts: all
+  roles:
+    - monitored-servers
+  tags:
+    - monit
+
+

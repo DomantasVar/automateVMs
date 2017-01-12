@@ -1,0 +1,21 @@
+*filter
+:INPUT DROP [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:MySQL-access-table - [0:0]
+:SSH-access-table - [0:0]
+:WEB-access-table - [0:0]
+:Zabbix-access-table - [0:0]
+-A INPUT -i lo -j ACCEPT 
+-A INPUT -p tcp -m tcp -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT 
+-A INPUT -p tcp -m tcp --dport 22 -m conntrack --ctstate NEW -j SSH-access-table 
+-A INPUT -p tcp -m tcp --dport 3306 -m conntrack --ctstate NEW -j MySQL-access-table 
+-A INPUT -p tcp -m tcp -m conntrack --ctstate NEW -m multiport --dports 80,443 -j WEB-access-table 
+-A INPUT -p tcp -m tcp --dport 10050 -m conntrack --ctstate NEW -j Zabbix-access-table 
+-A MySQL-access-table -j DROP 
+-A SSH-access-table -s {{zabbix_server}}/32  -m comment --comment "Main server" -j ACCEPT
+-A SSH-access-table -j DROP 
+-A WEB-access-table -j ACCEPT 
+-A Zabbix-access-table -s {{zabbix_server}}/32 -m comment --comment "Main (zabbix) server" -j ACCEPT 
+-A Zabbix-access-table -j DROP 
+COMMIT

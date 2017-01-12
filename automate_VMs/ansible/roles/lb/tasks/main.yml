@@ -1,0 +1,30 @@
+---
+
+- name: Generate self-signed certificate
+  register: certificate
+  command: openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj "/C=LT/ST=Denial/L=Springfield/O=Dis/CN={{ domain }}" -keyout {{ ssl_key }}  -out {{ ssl_crt }}
+  
+- name: Add example Site Config
+  when: certificate | success
+  register: exampleconfig
+  template: src=pavyzdys.com.conf.j2 dest=/etc/nginx/sites-available/{{ domain }}.conf owner=root group=root
+
+- name: Remove default site
+  file: path=/etc/nginx/sites-enabled/default state=absent
+
+- name: Enable example Site Config
+  when: exampleconfig |success
+  file: src=/etc/nginx/sites-available/{{ domain }}.conf dest=/etc/nginx/sites-enabled/{{ domain }}.conf state=link
+  notify:
+    - Reload Nginx
+
+- name: Create iptables directory if not existent
+  file: path=/etc/iptables state=directory
+
+- name: Copy iptables rules file
+  template: src=rules.v4 dest=/etc/iptables/rules.v4
+
+- name: Load new FW rules
+  shell: iptables-restore < /etc/iptables/rules.v4
+  ignore_errors: yes
+

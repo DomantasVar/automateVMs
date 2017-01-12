@@ -1,0 +1,53 @@
+Šis projektas susideda iš scenarijaus, skirto sukurti virtualią mašiną su išankstiniais nustatymais (automateVM.sh), scenarijaus, skirto sukurti kelias virtualias mašinas iš karto (keletą kartų paleidžiant pirmąjį scenarijų su skirtingais nustatymų failais - infrastructure.sh) bei Ansible rolių rinkinių, skirtų podiegimianiam konfigūravimui ir jo valdymui. 
+
+Abu scenarijus galite naudoti vienu iš dviejų būdų:
+
+- pakeisti .cfg failuose esančius nustatymus fagal savo poreikius (tačiau pabrėžiama, kad dėl smulkių pakeitimų standartinis Ansible rolių rinkinys gali reikalauti atitinkamų keitimų, o didesni pakeitimai gali lemti visišką Ansible rolių nesuderinamumą su infrastruktūra)
+
+- naudoti standartinę konfigūraciją ir paleisti infrastructure.sh scenarijų, kuris sukurs  pagrindinę mašiną, web serverių blokinį, MySQL duomenų bazės blokinį bei klietą, turinti grafinę sąsają. 
+
+######################################################################################################################################
+
+Instrukcijos, numatytosios sistemos paruošimui:
+
+1) Įsitikinti, kad sistemoje yra įdiegti būtini programinės įrangos paketai - debootstrap ir VirtualBox;
+
+2) Pagal savo sistemą nustatyti parametrus global_variables.cfg faile - parametrų paaiškinimai pateikti minėtame faile;
+
+3) Paleisti infrastructure.sh scenarijų
+	sudo ./infrastructure.sh
+Scenarijų būtina paleisti sudo teisėmis, nes vykdomos operacijos apima darbą su blokiniais įrenginiais, failų sistemos įrašymų ir panašiai.
+Scenarijaus veikimo metu gali tekti atsakyti į kelis klausimus, susijusiu su iptables ir ugniasienės taisyklių išsaugojimą - tiesiog atsakykite teigiamai. 
+Scenarijus sukurs virtualius diskus ir .vbox virtualios mašinos nustatymų failus global_variables faile nurodytose direktorijose;
+
+4) Paleiskite virtualias mašinas rankiniu būdu: du kartu spragtelėkite kiekvienos mašinos .vbox failą, tai mašiną užregistruos ir pridės į inventorių, matomą grafinėje VirtualBox sąsajoje. Tuomet, iš VirtualBox panelės startuokite visas mašinas. Šie žingsniai reikalauja daugiau pastangų nei automatinis paleidimas iš komandų eilutės, tačiau tai leidžia mašinas paprasčiau sustabdyti ar ištrinti.
+
+5) (NEPRIVALOMA) Iš fizinės mašinos prisijunkite prie Master virtualios mašinos per SSH. Nors darbą galima tęsti naudojant VirtualBox konsolę, šis sprendimas nėra patogus. Lengviausia Master mašinos IP adresą (kuris standartiškai gaunamas iš DHCP serverio) sužinoti prisijungus prie mašinos per VirtualBox konsolę ir įvykdžius komandą:
+	ifconfig
+Tuomet prisijungimui fizinėje mašinoje įvykdykite:
+	ssh root@<Master IP>
+Jei nustatymų faile buvo įvestas teisingas viešas SSH raktas,būsite automatiškai prijungti prie Master konsolės. 
+
+6) Nueikite į /etc/ansible directoriją ir paleiskite pagrindinį rolių rinkinį, kuris atliks didžiąją dalį konfigūravimo:
+	cd /etc/ansible
+	ansible-playbook -s infrastructure.yml
+
+7) Norint pilnai sukonfigūruoti Zabbix serverį, reikia užbaigti jo diegimą per WEB sąsają. Ją pasiekti galite per fizinės mašinos naršyklę į adresų lauką įvedę <Master IP>/zabbix (Master IP jau žinote iš 5 žingsnio). Jei diegiate numatytąją infrastruktūrą, įveskite šiuos nustatymus:
+
+Database Type:   MySQL
+Database host:   10.10.11.1
+Database port:   3306 (arba palikite 0)
+Database name:   zabbix
+User: 		 zabbix
+Password: 	 zabbix
+
+Host: 		 localhost
+Port: 		 10051
+Name:		 Bet koks vardas (standartiškai - zabbix-server)
+
+8) Jei diegimas sėkmingas, grįžkite į konsolės ar terminalo langą, kuriame esate prisijungę prie Master mašinos, nueikite į /etc/ansible direktoriją, jei iš jos išėjote, ir paleiskite zabbix-playbook rolių rinkinį, kuris pridės likusias mašinas į Zabbix monitoringo serverį:
+	cd /etc/ansible
+	ansible-playbook -s zabbix-server.yml
+9) Naudokite infrastruktūrą pagal savo poreikius. 	
+
+

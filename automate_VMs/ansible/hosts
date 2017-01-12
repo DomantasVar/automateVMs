@@ -1,0 +1,21 @@
+[local]
+127.0.0.1     ansible_connection=local
+
+[lb]
+10.10.10.1
+
+[web]
+10.10.10.2
+10.10.10.3
+
+[mysql_cluster_mgm]
+10.10.11.1
+
+[mysql_cluster_sql]
+10.10.11.1
+
+[mysql_cluster_data]
+10.10.11.2
+10.10.11.3
+
+

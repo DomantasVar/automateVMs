@@ -1,0 +1,41 @@
+---
+
+- name: Generate self-signed certificate
+  register: certificate
+  command: openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj "/C=LT/ST=Denial/L=Springfield/O=Dis/CN={{ domain }}" -keyout {{ ssl_key }}  -out {{ ssl_crt }}
+  
+- name: Add example Site Config
+  when: certificate | success
+  register: exampleconfig
+  template: src=pavyzdys.com.conf.j2 dest=/etc/nginx/sites-available/{{ domain }}.conf owner=root group=root
+
+- name: Enable example Site Config
+  when: exampleconfig |success
+  file: src=/etc/nginx/sites-available/{{ domain }}.conf dest=/etc/nginx/sites-enabled/{{ domain }}.conf state=link
+
+- name: Create Web root
+  register: createwebroot
+  file: dest=/var/www/{{ domain }} mode=775 state=directory owner=www-data group=www-data
+  notify:
+    - Reload Nginx
+
+- name: Web Root Permissions
+  register: permissions
+  when: createwebroot|success
+  file: dest=/var/www/{{ domain }} mode=775 state=directory owner=www-data group=www-data recurse=yes
+  notify:
+    - Reload Nginx
+
+- name: Put index file in docroot
+  when: permissions|success
+  template: src=index.html.j2 dest=/var/www/{{ domain }}/index.html owner=www-data group=www-data
+
+- name: create iptables directory if not existent
+  file: path=/etc/iptables state=directory
+
+- name: copy iptables rules file
+  template: src=rules.v4 dest=/etc/iptables/rules.v4
+
+- name: load new FW rules
+  shell: iptables-restore < /etc/iptables/rules.v4
+  ignore_errors: yes

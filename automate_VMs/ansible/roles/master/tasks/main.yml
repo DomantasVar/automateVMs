@@ -1,0 +1,116 @@
+---
+
+- name: "Debian | Installing repository {{ ansible_distribution }}"
+  apt_repository:
+    repo: "{{ item }} http://repo.zabbix.com/zabbix/3.2/{{ ansible_distribution.lower() }}/ {{ ansible_distribution_release }} main"
+    state: present
+  with_items:
+    - deb-src
+    - deb
+  tags:
+    - zabbix-server
+    - init
+    - config
+
+- name: "Debian | Install gpg key"
+  apt_key: id=79EA5ED4
+           url=http://repo.zabbix.com/zabbix-official-repo.key
+  tags:
+    - zabbix-server
+    - init
+    - config
+
+- name: "Debian | Installing zabbix-server-mysql"
+  apt: pkg=zabbix-server-mysql
+       state=present
+       update_cache=yes
+  tags:
+    - zabbix-server
+    - init
+
+- name: "Debian | Install php5-mysql"
+  apt: pkg=php5-mysql
+       state=present
+       update_cache=yes
+       cache_valid_time=3600
+  tags:
+    - zabbix-server
+    - init
+
+- name: "Debian | Install zabbix-web"
+  apt:  pkg=zabbix-frontend-php
+        state=present
+        update_cache=yes
+        cache_valid_time=3600
+  tags:
+    - zabbix-server
+    - init
+    - config
+
+- name: "Debian | Install Ansible module dependencies"
+  apt: name=python-psycopg2
+       state=present
+  tags:
+    - zabbix-server
+    - init
+
+- name: "Debian | Install Mysql Client package"
+  apt: name={{ item }}
+       state=present
+  with_items:
+    - mysql-client
+    - python-mysqldb
+  tags:
+    - zabbix-server
+    - init
+    - database
+
+- name: "Edit /etc/zabbix/apache.conf"
+  shell: sed -i "s|# php_value date.timezone Europe/Riga|php_value date.timezone Europe/Vilnius|g" /etc/zabbix/apache.conf
+
+- name: "Edit zabbix server line in config file"
+  lineinfile:
+    dest: /etc/zabbix/zabbix_server.conf
+    regexp: '# DBHost='
+    line: 'DBHost={{ zabbix_database_host }}'
+
+- name: "Edit zabbix server line in config file"
+  lineinfile:
+    dest: /etc/zabbix/zabbix_server.conf
+    regexp: '# DBPassword='
+    line: 'DBPassword={{ zabbix_password }}'
+
+- name: "Edit zabbix server line in config file"
+  lineinfile:
+    dest: /etc/zabbix/zabbix_server.conf
+    regexp: 'DBName=zabbix'
+    line: 'DBName={{ zabbix_database }}'
+
+- name: "Edit zabbix server line in config file"
+  lineinfile:
+    dest: /etc/zabbix/zabbix_server.conf
+    regexp: 'DBUser=zabbix'
+    line: 'DBUser={{ zabbix_user }}'
+
+- name: "Restart apache2"
+  service: name=apache2 state=restarted
+
+- name: "Start zabbix server"
+  service: name=zabbix-server state=restarted
+
+- name: "Extract database init script"
+  shell: gunzip /usr/share/doc/zabbix-server-mysql/create.sql.gz creates=/usr/share/doc/zabbix-server-mysql/create.sql
+
+- name: "Prepare remote database"
+  shell: mysql -h 10.10.11.1 -u zabbix -pzabbix zabbix < /usr/share/doc/zabbix-server-mysql/create.sql
+  ignore_errors: yes
+
+- name: "Create iptables directory if not existent"
+  file: path=/etc/iptables state=directory
+
+- name: Copy iptables rules file"
+  template: src=rules.v4 dest=/etc/iptables/rules.v4
+
+- name: "Load new FW rules"
+  shell: iptables-restore < /etc/iptables/rules.v4
+  ignore_errors: yes

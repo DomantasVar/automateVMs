@@ -1,0 +1,47 @@
+- name: Extract binaries
+  register: extract
+  command: tar -C /usr/local -xzf /root/mysql-cluster-gpl-7.5.4-linux-glibc2.5-x86_64.tar.gz creates=/usr/local/mysql-cluster
+
+- name: Check if folder was renamed already     
+  stat: path=/usr/local/mysql-cluster
+  register: p
+
+- name: Rename folder
+  when: not p.stat.exists
+  command: mv /usr/local/mysql-cluster-gpl-7.5.4-linux-glibc2.5-x86_64 /usr/local/mysql-cluster
+
+- name: Check if datadir exists     
+  stat: path=/usr/local/mysql/data
+  register: p1
+
+- name: Create datadir      
+  when: not p1.stat.exists
+  command: mkdir -p /usr/local/mysql/data
+
+- name: Install nbd binaries
+  command: install ndb_mgmd ndb_mgm /usr/local/bin/ chdir=/usr/local/mysql-cluster/bin/ creates=/usr/local/bin/ndb_mgmd
+
+- name: Install config
+  template: src=my.cnf dest=/etc/my.cnf
+
+- name: Install init file
+  template: src=ndbd.init dest=/etc/init.d/ndbd
+
+- name: Config init file permissions
+  command: chmod 755 /etc/init.d/ndbd
+
+- name: Activate init file
+  shell: systemctl enable ndbd
+
+- name: Start ndbd
+  service: name=ndbd state=started
+
+- name: Create iptables directory if not existent
+  file: path=/etc/iptables state=directory
+
+- name: Copy iptables rules file
+  template: src=rules.v4 dest=/etc/iptables/rules.v4
+
+- name: Load new FW rules
+  shell: iptables-restore < /etc/iptables/rules.v4
+  ignore_errors: yes

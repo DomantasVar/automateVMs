@@ -1,0 +1,63 @@
+## Common options 
+
+## SQL server
+
+mysql_root_password: MySqLr00T
+
+## Zabbix server
+
+zabbix_database_host: 10.10.11.1  
+zabbix_database: zabbix
+zabbix_user: zabbix
+zabbix_password: zabbix
+
+## Key names of hosts and group names are free to change as long same group are indicated in zabbix_group section.
+
+hosts:
+    lb:
+       ip: 10.10.10.1
+       group: WEB
+       template: "Template OS Linux"   
+    web1:
+       ip: 10.10.10.2
+       group: WEB
+       template: Template OS Linux
+    web2: 
+       ip: 10.10.10.3
+       group: WEB
+       template: Template OS Linux
+    db1:
+       ip: 10.10.11.1
+       group: DB
+       template: Template OS Linux
+    db2:
+       ip: 10.10.11.2
+       group: DB
+       template: Template OS Linux
+    db3:
+       ip: 10.10.11.3
+       group: DB
+       template: Template OS Linux
+
+zabbix_groups:
+    DB:
+    WEB:
+    MASTER:
+
+
+## ADVANCED OPTIONS - CHANGE ONLY IF YOU KNOW WHAT YOU ARE DOING
+
+
+## Designate which version of python to use, as there is a chance of playbook failure without this option.
+ansible_python_interpreter: /usr/bin/python2.7
+
+## IP address of zabbix server (should be the same as main server)
+zabbix_server: 10.10.10.100
+
+## IP adress of SQL node
+sql_node: 10.10.11.1
+
+## Network of web cluster
+web_subnet: 10.10.10.0/24
+
+
