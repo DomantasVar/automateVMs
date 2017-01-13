@@ -29,7 +29,9 @@ check_exit_status()
 		echo_string_green "Success. Proceeding."
 	else
 		echo_string_red "Failed. Exiting."
-		cleanup
+		if [[ $DISKSMOUNTED == 1 ]]; then
+			cleanup
+		fi		
 		exit 1
 	fi
 }
@@ -104,6 +106,8 @@ echo_string_white "Importing variables.."
 	source $( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/global_variables.cfg
 	check_exit_status
 
+
+
 echo_string_white "Importing configuration file.."
 	if [ $# == 1 ]; then
 		source $1
@@ -111,6 +115,7 @@ echo_string_white "Importing configuration file.."
 	else
 		echo_string_red "Usage: $0 <path to configuration file>"
 	fi
+
 
 echo_string_white "Validating directories.."
 	if [ "$FILEPATH" == "" ]; then 
@@ -135,6 +140,7 @@ fi
 echo_string_white "Setting additional variables.."
 	RAWIMAGE="${FILEPATH}"${FILENAME}.img
 	VDIIMAGE="${FILEPATH}"${FILENAME}.vdi
+	DISKSMOUNTED=0
 
 echo_string_white "Validating variables.."
 #USERNAME,INSTALLOPTION,DISTRIBUTION,ARCH,OSTYPE
@@ -231,6 +237,7 @@ echo_string_white "Mounting required directories.."
 echo_string_white "Mounting /proc"
   	mount --bind /proc /mnt/proc
 	check_exit_status
+	DISKSMOUNTED=1
 echo_string_white "Mounting /dev"
   	mount --bind /dev /mnt/dev
 	check_exit_status
@@ -347,23 +354,27 @@ if [ ${ROLE} == "DATABASE" ]; then
 fi
 
 echo_string_white "Installing OS specific (zabbix-agent and iptables).."
-chroot /mnt export DEBIAN_FRONTEND=noninteractive
 chroot /mnt echo iptables-persistent iptables-persistent/autosave_v4 boolean true |  debconf-set-selections
 chroot /mnt echo iptables-persistent iptables-persistent/autosave_v6 boolean true |  debconf-set-selections
 chroot /mnt echo iptables iptables/autosave_v4 boolean true |  debconf-set-selections
 chroot /mnt echo iptables iptables/autosave_v6 boolean true |  debconf-set-selections
 
-if [[ $RESOURCE == *"ubuntu"* ]]; then
+if [[ $OSTYPE == *"Ubuntu"* ]]; then
     if [[ $ROLE != "MASTER" ]]; then
+	sleep 3
 	chroot /mnt wget http://repo.zabbix.com/zabbix/3.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_3.0-1+${DISTRIBUTION}_all.deb
 	chroot /mnt dpkg -i zabbix-release_3.0-1+${DISTRIBUTION}_all.deb
  	chroot /mnt apt-get update 
-	chroot /mnt apt-get install -y -q iptables zabbix-agent
-elif [[ $RESOURCE == *"debian"* ]]; then
+	chroot /mnt apt-get install -y iptables 
+	chroot /mnt apt-get install -y zabbix-agent
+     fi
+elif [[ $OSTYPE == *"Debian"* ]]; then
+    if [[ $ROLE != "MASTER" ]]; then
 	chroot /mnt wget http://repo.zabbix.com/zabbix/3.0/debian/pool/main/z/zabbix-release/zabbix-release_3.0-1+jessie_all.deb
 	chroot /mnt dpkg -i zabbix-release_3.0-1+${DISTRIBUTION}_all.deb
 	chroot /mnt apt-get update 
-	chroot /mnt apt-get install -y -q iptables-persistent zabbix-agent
+	chroot /mnt apt-get install -y iptables-persistent
+ 	chroot /mnt apt-get install -y zabbix-agent
     fi
 fi
 check_exit_status
@@ -378,11 +389,11 @@ echo_string_white "Setting UUID in fstab.."
 #Validate provided IPs and set them as static if they are valid (only for intnet)
 COUNT=0
 echo_string_white "Vaidating and configuring network settings"
-for i in {1..5}
+for i in {1..4}
 do
 	if [ ! -z ${NIC[$i]+x} ]; then
 		echo "auto eth${COUNT}" >> /mnt/etc/network/interfaces
-		if [ ${NIC[$i]NETW} == "static" ]; then
+		if [ ${NICNETW[$i]} == "static" ]; then
 			echo "iface eth${COUNT} inet static" >> /mnt/etc/network/interfaces
 			if validate_ip ${NICIP[$i]}; then 
 				stat='good'; else stat='bad'; 
@@ -403,18 +414,17 @@ do
 				echo_string_white "Netmask ${NETMASK[$i]} not valid, so 255.255.0.0 set instead"
 				echo "NETMASK 255.255.255.0" >> /mnt/etc/network/interfaces
 			fi
-			echo "dns-servers 8.8.8.8" >> /mnt/etc/network/interfaces
+			echo "dns-nameservers 8.8.8.8" >> /mnt/etc/network/interfaces
 		else 
 			echo "iface eth${COUNT} inet dhcp" >> /mnt/etc/network/interfaces
 		fi
         ((COUNT++))
 	fi
 done
-
+check_exit_status
 
 cleanup
-
-# By this part raw image is created. In the part below it is converted to native VirtualBox disk image (VDI) and VM is created according to setting defined in settings.cfg file which must be in the same directory as main script.
+DISKSMOUNTED=0
 
 echo_string_white "Converting raw image to VDI.."
 	/usr/bin/vboxmanage convertfromraw --format vdi $RAWIMAGE "$VDIIMAGE"
@@ -437,7 +447,7 @@ echo_string_white "Setting up network interface card(s).."
 			if [ ${NIC[$i]} == "bridged" ]; then
 				echo_string_white "Setting up $i network interface card (bridged).." 	
 				/usr/bin/vboxmanage modifyvm $VMNAME --nic$i ${NIC[$i]}  --nictype$i ${NICTYPE[$i]} --bridgeadapter$i wlp8s0 --macaddress$i auto 
-			check_exit_status
+				check_exit_status
 			elif [ ${NIC[$i]} == "intnet" ]; then
 				echo_string_white "Setting up $i network interface card (internal).."
 				/usr/bin/vboxmanage modifyvm $VMNAME --nic$i ${NIC[$i]}  --nictype$i ${NICTYPE[$i]} --intnet$i ${NICINETNAME[$i]}
@@ -458,7 +468,13 @@ echo_string_white "Attaching disk to new VM.."
 	check_exit_status
 
 echo_string_white "Registering.."
-	/usr/bin/vboxmanage registervm "${BASEFOLDER}"/${VMNAME}.vbox
+	/usr/bin/vboxmanage registervm "${BASEFOLDER}"${VMNAME}/${VMNAME}.vbox
+
+if [[ $KEEP_IMG_DISK==0 ]];then
+echo_string_white "Deleting .img disk file"	
+	rm $RAWIMAGE
+	check_exit_status
+fi
 
 
 #echo_string_white "Starting VM.."
@@ -469,3 +485,14 @@ echo_string_white "Configuring permissions.."
 	check_exit_status
 	chown $USERNAME:$USERNAME "$VDIIMAGE"
 	check_exit_status
+
+	chmod +x $( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/startVMs.sh && chown $USERNAME:$USERNAME $( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/startVMs.sh 
+	chmod +x $( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/stopVMs.sh && chown $USERNAME:$USERNAME $( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/stopVMs.sh 
+	chmod +x $( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/registerVMs.sh && chown $USERNAME:$USERNAME $( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/registerVMs.sh
+
+	echo "vboxmanage registervm '${BASEFOLDER}${VMNAME}/${VMNAME}.vbox'" >> $( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/registerVMs.sh
+	echo "vboxmanage startvm ${VMNAME}" >> $( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/startVMs.sh
+	echo "vboxmanage controlvm ${VMNAME} poweroff" >> $( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/stopVMs.sh
+
+
+

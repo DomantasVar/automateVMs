@@ -28,6 +28,14 @@
     - zabbix-server
     - init
 
+- name: "Debian | Installing zabbix-agent"
+  apt: pkg=zabbix-agent
+       state=present
+       update_cache=yes
+  tags:
+    - zabbix-agent
+    - init
+
 - name: "Debian | Install php5-mysql"
   apt: pkg=php5-mysql
        state=present
@@ -95,15 +103,15 @@
 - name: "Restart apache2"
   service: name=apache2 state=restarted
 
-- name: "Start zabbix server"
-  service: name=zabbix-server state=restarted
-
 - name: "Extract database init script"
   shell: gunzip /usr/share/doc/zabbix-server-mysql/create.sql.gz creates=/usr/share/doc/zabbix-server-mysql/create.sql
 
 - name: "Prepare remote database"
   shell: mysql -h 10.10.11.1 -u zabbix -pzabbix zabbix < /usr/share/doc/zabbix-server-mysql/create.sql
   ignore_errors: yes
+
+- name: "Start zabbix server"
+  service: name=zabbix-server state=restarted
 
 - name: "Create iptables directory if not existent"
   file: path=/etc/iptables state=directory

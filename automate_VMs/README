@@ -11,7 +11,7 @@ To use either of available options, you can
 
 Instructions, how to fully prepare predefined infrastructure:
 
-1) Make sure needed software packages - debootstrap and VirtualBox - are installed 
+1) Make sure that you system satisfies minimal requirements - have debootstrap and VirtualBox packages install and have at least 14 gigabytes of space on the disk where you want disk files to be saved. 
 
 2) Edit some global settings for infrastructe in global_variables.cfg. Information abuot those options is provided in the global_variables.cfg file.
 
@@ -21,20 +21,24 @@ sudo option is required for operations involving system block devices, disk form
 You might be asked questions regarding iptables instalation, so just accept those prompts as they come. 
 This script vill create virtual disks and .vbox  in directories entered in global_variables.cfg file. 
 
-4) Start created VMs - duoble click each .vbox file to register it in VirtualBox and then start them from VirtualBox GUI.
+4) Register new VMs by running "registerVMs.sh" script, or, if errors arise, executes commands from this file manually.
 
-5) (OPTIONAL) Connect to Master vitual machine from your host machine via SSH. To do this, you first have to check IP address assigned to Master machine by DHCP server / router via VirtualBox console (you might choose to use this console instead of SSH connection). 
+5) Start created VMs by running startVMs.sh script or manually from VirtualBox GUI.
+
+NOTE: Credentials for all machines to login via VirtualBox console are root/root, with an exception of client maxhine whichas test user with password root.
+
+6) (OPTIONAL) Connect to Master vitual machine from your host machine via SSH. To do this, you first have to check IP address assigned to Master machine by DHCP server / router via VirtualBox console (you might choose to use this console instead of SSH connection). 
 
 	ssh root@<Master IP>
 
 You will be connected without password prompt, as it is required to provide public SSH key of your host machine for this connection. 
 
-6) Navigate to /etc/ansible directory in Master machine and start main playbook
+7) Navigate to /etc/ansible directory in Master machine and start main playbook
 	cd /etc/ansible
 	ansible-playbook -s infrastructure.yml
 This will prepare most of the infrastructure.
 
-7) To fully configure Zabbix monitoring server, in your host machine open browser and in address bar enter <Master IP>/zabbix (IP is same as in step 5). You should now see Zabbix installation screen. Follow the instructions and enter required fields. If you are using defaults, they should be as follows:
+8) To fully configure Zabbix monitoring server, in your host machine open browser and in address bar enter <Master IP>/zabbix (IP is same as in step 5). You should now see Zabbix installation screen. Follow the instructions and enter required fields. If you are using defaults, they should be as follows:
 
 Database Type:   MySQL
 Database host:   10.10.11.1
@@ -47,11 +51,13 @@ Host: 		 localhost
 Port: 		 10051
 Name:		 Any name
 
-8) If installation was successfull, open up console or terminal where you are connected to master, navigate to /etc/ansible directory and start zabbix-palybook
+After installiotion you can login with default credentials - admin/zabbix
+
+9) If installation was successfull, open up console or terminal where you are connected to master, navigate to /etc/ansible directory and start zabbix-palybook
 	cd /etc/ansible
 	ansible-playbook -s zabbix-server.yml
 This playbook will import hosts to zabbix server (applies for default infrastructure)
 
-9) Start using infrastructure to your needs. 
+10) Start using infrastructure to your needs. 
 
 

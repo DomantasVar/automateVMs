@@ -1,11 +1,11 @@
 ---
-- hosts: LB
+- hosts: lb
   roles:
-    - LB
+    - load-balancer
 
-- hosts: WEB
+- hosts: web
   roles:
-    - WEB
+    - web
 
 
 

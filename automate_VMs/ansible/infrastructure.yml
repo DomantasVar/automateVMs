@@ -1,7 +1,7 @@
 ---
 - hosts: lb
   roles:
-    - lb
+    - load-balancer
   tags:
     - lb
 
